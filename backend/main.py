@@ -5,6 +5,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 import uuid
+import os
 
 app = FastAPI()
 
@@ -210,13 +211,18 @@ async def save_resume(resume: Dict[str, Any]):
 
     resumes.append(resume)
 
-    pdf_name = f"resume_{uuid.uuid4().hex}.pdf"
+    # CREATE FOLDER
+    os.makedirs("generated_resumes", exist_ok=True)
 
+    # PDF PATH
+    pdf_name = f"generated_resumes/resume_{uuid.uuid4().hex}.pdf"
+
+    # GENERATE PDF
     generate_resume_pdf(resume, pdf_name)
 
     return {
         "message": "Resume saved successfully",
-        "pdf_file": pdf_name,
+        "pdf_file": pdf_name.split("/")[-1],
         "data": resume
     }
 
@@ -229,8 +235,17 @@ async def get_resumes():
 @app.get('/download/{filename}')
 async def download_resume(filename: str):
 
+    file_path = f"generated_resumes/{filename}"
+
     return FileResponse(
-        path=filename,
+        path=file_path,
         media_type='application/pdf',
         filename=filename
     )
+
+
+@app.get("/")
+async def root():
+    return {
+        "message": "AI Resume Automation Backend Running"
+    }
