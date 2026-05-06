@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+env/
+venv/
+
+# macOS
+.DS_Store
+
+# Generated PDFs
+*.pdf
+
+# n8n
+.n8n/
+
+# Node
+node_modules/
+
+# Vite
+dist/
