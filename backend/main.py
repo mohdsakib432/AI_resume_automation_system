@@ -1,7 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from typing import Dict, Any
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer
+)
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 import uuid
@@ -14,7 +18,10 @@ resumes = []
 
 def generate_resume_pdf(data: Dict[str, Any], filename: str):
 
-    doc = SimpleDocTemplate(filename, pagesize=letter)
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=letter
+    )
 
     styles = getSampleStyleSheet()
 
@@ -67,20 +74,35 @@ def generate_resume_pdf(data: Dict[str, Any], filename: str):
 
     skills = data.get('skills', {})
 
-    for category, values in skills.items():
+    if isinstance(skills, dict):
 
-        if isinstance(values, list):
+        for category, values in skills.items():
 
-            skill_text = ", ".join(
-                [str(v) for v in values]
-            )
+            if isinstance(values, list):
 
-            elements.append(
-                Paragraph(
-                    f"<b>{category}</b>: {skill_text}",
-                    styles['Normal']
+                skill_text = ", ".join(
+                    [str(v) for v in values]
                 )
+
+                elements.append(
+                    Paragraph(
+                        f"<b>{category}</b>: {skill_text}",
+                        styles['Normal']
+                    )
+                )
+
+    elif isinstance(skills, list):
+
+        skill_text = ", ".join(
+            [str(v) for v in skills]
+        )
+
+        elements.append(
+            Paragraph(
+                skill_text,
+                styles['Normal']
             )
+        )
 
     elements.append(Spacer(1, 12))
 
@@ -126,7 +148,11 @@ def generate_resume_pdf(data: Dict[str, Any], filename: str):
 
         degree = edu.get('degree', '')
         institution = edu.get('institution', '')
-        duration = f"{edu.get('start_date', '')} - {edu.get('end_date', '')}"
+        duration = (
+            f"{edu.get('start_date', '')} - "
+            f"{edu.get('end_date', '')}"
+        )
+
         grade = edu.get('grade', '')
 
         elements.append(
@@ -206,48 +232,71 @@ def generate_resume_pdf(data: Dict[str, Any], filename: str):
     doc.build(elements)
 
 
-@app.post('/resume')
+@app.post("/resume")
 async def save_resume(resume: Dict[str, Any]):
 
     resumes.append(resume)
 
     # CREATE FOLDER
-    os.makedirs("generated_resumes", exist_ok=True)
+    os.makedirs(
+        "generated_resumes",
+        exist_ok=True
+    )
 
-    # PDF PATH
-    pdf_name = f"generated_resumes/resume_{uuid.uuid4().hex}.pdf"
+    # PDF FILE NAME
+    pdf_filename = (
+        f"resume_{uuid.uuid4().hex}.pdf"
+    )
+
+    # FULL PDF PATH
+    pdf_path = os.path.join(
+        "generated_resumes",
+        pdf_filename
+    )
 
     # GENERATE PDF
-    generate_resume_pdf(resume, pdf_name)
+    generate_resume_pdf(
+        resume,
+        pdf_path
+    )
 
     return {
         "message": "Resume saved successfully",
-        "pdf_file": pdf_name.split("/")[-1],
+        "pdf_file": pdf_filename,
         "data": resume
     }
 
 
-@app.get('/resumes')
+@app.get("/download/{filename}")
+async def download_resume(filename: str):
+
+    file_path = os.path.join(
+        "generated_resumes",
+        filename
+    )
+
+    if not os.path.exists(file_path):
+
+        raise HTTPException(
+            status_code=404,
+            detail="Resume not found"
+        )
+
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/pdf"
+    )
+
+
+@app.get("/resumes")
 async def get_resumes():
     return resumes
 
 
-
-@app.get("/download/")
-async def download_resume():
-    file_path = "resume.pdf"
-
-    if os.path.exists(file_path):
-        return FileResponse(
-            path=file_path,
-            filename="resume.pdf",
-            media_type="application/pdf"
-        )
-
-    return {"error": "File not found"}
-
 @app.get("/")
 async def root():
+
     return {
         "message": "AI Resume Automation Backend Running"
     }
