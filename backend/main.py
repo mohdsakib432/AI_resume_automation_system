@@ -232,17 +232,19 @@ async def get_resumes():
     return resumes
 
 
-@app.get('/download/{filename}')
-async def download_resume(filename: str):
 
-    file_path = f"generated_resumes/{filename}"
+@app.get("/download/")
+async def download_resume():
+    file_path = "resume.pdf"
 
-    return FileResponse(
-        path=file_path,
-        media_type='application/pdf',
-        filename=filename
-    )
+    if os.path.exists(file_path):
+        return FileResponse(
+            path=file_path,
+            filename="resume.pdf",
+            media_type="application/pdf"
+        )
 
+    return {"error": "File not found"}
 
 @app.get("/")
 async def root():
